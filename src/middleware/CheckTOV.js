@@ -4,6 +4,7 @@ const envConfig = require('dotenv').config({ path: dotenvPath }).parsed;
 const axios = require('axios');
 const crypto = require('crypto');
 const TokoV = require('../models/tov');
+const { numberWithCommas } = require('../services/http_toko');
 
 if (!envConfig) {
     throw new Error(`Failed to load .env file from ${dotenvPath}`);
@@ -155,8 +156,8 @@ ${statusColor} Status: <b>${statusText}</b>
 🆔 Ref ID: <code>${data.ref_id}</code>
 🔢 Trx ID: <code>${data.trx_id}</code>
 
-${data.sn ? `🎮 Serial Number:\n<code>${data.sn}</code>\n\n` : ''}${data.message ? `📝 Pesan:\n<i>${data.message}</i>\n\n` : ''}💰 Harga: Rp ${data.price ? Number(data.price).toLocaleString('id-ID') : 'N/A'}
-💳 Saldo: Rp ${data.sisa_saldo ? Number(data.sisa_saldo).toLocaleString('id-ID') : 'N/A'}
+${data.sn ? `🎮 Serial Number:\n<code>${data.sn}</code>\n\n` : ''}${data.message ? `📝 Pesan:\n<i>${data.message}</i>\n\n` : ''}💰 Harga: Rp ${data.price ? numberWithCommas(Number(data.price)) : 'N/A'}
+💳 Saldo: Rp ${data.sisa_saldo ? numberWithCommas(Number(data.sisa_saldo)) : 'N/A'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⏰ <i>${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}</i>
