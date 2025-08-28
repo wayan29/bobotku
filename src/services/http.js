@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const axios = require('axios');
 const fs = require('fs').promises;
+const path = require('path');
 require('dotenv').config();
 
 const digiflazz = {
@@ -25,9 +26,10 @@ const digiflazz = {
  };
     /**
      * Fetches the list of product categories from Digiflazz API or cache.
+     * @param {boolean} forceRefresh - If true, always fetch fresh data from API
      * @returns {Promise<string[]>}
      */
-   async function getListProductDigi() {
+   async function getListProductDigi(forceRefresh = false) {
         const { cacheFile, baseUrl, username, apiKey } = digiflazz;
         const endpoint = `${baseUrl}/v1/price-list`;
         const cmd = 'prepaid';
@@ -36,18 +38,50 @@ const digiflazz = {
     try {
             let json;
             
-             if (await fs.access(cacheFile).then(() => true).catch(() => false)) {
-                 const data = { cmd, username, sign };
-                  const response = await axios.post(endpoint, data);
-                    json = response.data;
-                    await fs.writeFile(cacheFile, JSON.stringify(json));
-            }
-            else {
+            // Ensure cache directory exists
+            const cacheDir = path.dirname(cacheFile);
+            await fs.mkdir(cacheDir, { recursive: true });
+            
+            // If forceRefresh is true, always fetch from API
+            if (forceRefresh) {
+                console.log('Force refresh: Fetching fresh product data from Digiflazz API...');
                 const data = { cmd, username, sign };
-                 const response = await axios.post(endpoint, data);
-                  json = response.data;
-                 await fs.writeFile(cacheFile, JSON.stringify(json));
+                const response = await axios.post(endpoint, data);
+                json = response.data;
+                
+                // Save to cache
+                await fs.writeFile(cacheFile, JSON.stringify(json, null, 2));
+            } else {
+                // Check if cache file exists and try to read from it first
+                const cacheExists = await fs.access(cacheFile).then(() => true).catch(() => false);
+                
+                if (cacheExists) {
+                    try {
+                        // Try to read from cache first
+                        const cachedData = await fs.readFile(cacheFile, 'utf-8');
+                        json = JSON.parse(cachedData);
+                        
+                        // If cache is valid, return categories from cache
+                        if (json.data && Array.isArray(json.data)) {
+                            console.log('Using cached product data');
+                            const categories = Array.from(new Set(json.data.map(({ category }) => category)));
+                            return categories;
+                        }
+                    } catch (cacheError) {
+                        console.log('Cache file exists but is invalid, fetching fresh data');
+                    }
+                }
+                
+                // If no cache or cache is invalid, fetch from API
+                console.log('Fetching fresh product data from Digiflazz API...');
+                const data = { cmd, username, sign };
+                const response = await axios.post(endpoint, data);
+                json = response.data;
+                
+                // Save to cache
+                await fs.writeFile(cacheFile, JSON.stringify(json, null, 2));
             }
+            
              // Check if we have valid product data
             if (json.data && Array.isArray(json.data)) {
                 const categories = Array.from(new Set(json.data.map(({ category }) => category)));
@@ -73,6 +107,10 @@ const digiflazz = {
     async function getListBrand (category) {
       const { cacheFile } = digiflazz;
       try {
+          // Ensure cache directory exists
+          const cacheDir = path.dirname(cacheFile);
+          await fs.mkdir(cacheDir, { recursive: true });
+          
           const data = await fs.readFile(cacheFile, 'utf-8');
         const { data : productData } = JSON.parse(data);
         const filteredData = productData.filter((item) => item.category === category);
@@ -93,6 +131,10 @@ const digiflazz = {
      async function getProductList (category, brand) {
         const { cacheFile } = digiflazz;
         try {
+            // Ensure cache directory exists
+            const cacheDir = path.dirname(cacheFile);
+            await fs.mkdir(cacheDir, { recursive: true });
+            
             const data = await fs.readFile(cacheFile, 'utf-8');
             const { data : productData } = JSON.parse(data);
             const filteredData = productData.filter(item => item.category === category && item.brand === brand);
@@ -112,6 +154,10 @@ const digiflazz = {
     async function getPrice (productName) {
       const { cacheFile } = digiflazz;
        try {
+            // Ensure cache directory exists
+            const cacheDir = path.dirname(cacheFile);
+            await fs.mkdir(cacheDir, { recursive: true });
+            
             const data = await fs.readFile(cacheFile, 'utf-8');
             const { data : productData } = JSON.parse(data);
             const filteredData = productData.filter(item => item.product_name === productName);
