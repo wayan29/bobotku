@@ -21,7 +21,8 @@ botMenu.enter(async (ctx) => {
 
     if (selectedBot === 'Digiflazz') {
         try {
-            listdigiflazz = await getListProductDigi();
+            // Always force refresh when Digiflazz is selected
+            listdigiflazz = await getListProductDigi(true);
             if (listdigiflazz.length === 0) {
                 await ctx.reply('⚠️ Tidak dapat mengambil data kategori produk. Silakan coba beberapa saat lagi.');
                 return ctx.scene.enter(SCENE_KEYS.BOT);
