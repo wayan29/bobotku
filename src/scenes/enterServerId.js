@@ -1,7 +1,7 @@
 const telegraf = require('telegraf');
 const SCENE_KEYS = require('../constants/sceneKeys');
 const { showKeyboardChunk } = require('../services/keyboard');
-const { createTrx, getRefId } = require('../services/http_toko');
+const { createTrx, getRefId, numberWithCommas } = require('../services/http_toko');
 const TokoV = require('../models/tov');
 
 const botMenu = new telegraf.Scenes.BaseScene(SCENE_KEYS.OPSI2);
@@ -74,16 +74,10 @@ botMenu.on('text', async (ctx) => {
                 break;
         }
 
-        // Format price and balance with shorter notation for mobile
-        const formatPrice = (price) => {
-            if (!price) return 'N/A';
-            price = Number(price);
-            if (price >= 1000000) {
-                return `${(price/1000000).toFixed(1)}M`;
-            } else if (price >= 1000) {
-                return `${(price/1000).toFixed(0)}K`;
-            }
-            return price.toString();
+        // Format price and balance consistently with commas
+        const formatCurrency = (amount) => {
+            if (!amount) return 'N/A';
+            return numberWithCommas(Number(amount));
         };
 
         message = `━ ${statusEmoji} <b>TRANSAKSI</b> ${statusEmoji} ━
@@ -97,8 +91,8 @@ ${statusEmoji} <b>Status:</b> ${statusText}
 • <b>Server:</b> <code>${server_id}</code>` : ''}
 
 💰 <b>Pembayaran:</b>
-• Harga: Rp ${formatPrice(trx_id.price)}
-• Saldo: Rp ${formatPrice(trx_id.sisa_saldo)}
+• Harga: Rp ${formatCurrency(trx_id.price)}
+• Saldo: Rp ${formatCurrency(trx_id.sisa_saldo)}
 
 🔖 <b>ID Transaksi:</b>
 • Ref: <code>${trx_id.ref_id || 'N/A'}</code>
