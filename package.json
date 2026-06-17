@@ -1,0 +1,31 @@
+{
+  "name": "bobotku",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "audit:trx": "node scripts/audit-transactions-log.js",
+    "audit:trx:json": "node scripts/audit-transactions-log.js --json",
+    "audit:trx:file": "node scripts/audit-transactions-log.js --json --out audit-report.json",
+    "audit:trx:strict": "node scripts/audit-transactions-log.js --fail-on-issues",
+    "audit:trx:cron": "node scripts/run-audit-report.js",
+    "repair:timestampdate": "node scripts/repair-transactions-timestampdate.js",
+    "repair:failed-selling": "node scripts/repair-failed-digiflazz-sellingprice.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18 <25"
+  },
+  "dependencies": {
+    "axios": "^1.15.3",
+    "dotenv": "^16.3.1",
+    "mongoose": "^7.8.9",
+    "pureimage": "^0.3.16",
+    "telegraf": "^4.16.3"
+  }
+}

@@ -1,0 +1,26 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.idea/
+
+cache/
+data/
+.waha/
+audit-report.json
+audit-reports/
+*.log
+
+# Internal planning & staff docs
+docs/superpowers/
+MANUAL-BOT-WEB-CHECKLIST.md
+STAFF-DAILY-CHECKLIST.md
+
+# Ops/repair/test scripts
+scripts/
+
+# Dev helper
+auto.sh
+
+# Backup / temp files
+*.new
