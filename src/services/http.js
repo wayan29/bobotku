@@ -3,7 +3,7 @@ const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 const DgCache = require('../models/dgcache');
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 const digiflazz = {
     baseUrl: 'https://api.digiflazz.com',

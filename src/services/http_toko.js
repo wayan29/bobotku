@@ -1,6 +1,6 @@
 const axios = require('axios');
 const crypto = require('crypto');
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 const TOV_BASE_URL = 'https://api.tokovoucher.net';
 const TOV_TIMEOUT_MS = Number(process.env.TOV_TIMEOUT_MS || 15000);

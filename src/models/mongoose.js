@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-require('dotenv').config()
+require('dotenv').config({ override: true })
 
 const userSchema = new mongoose.Schema({
     chatId: { type: String, required: true, unique: true },

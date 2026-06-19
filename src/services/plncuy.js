@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const axios = require("axios");
-require("dotenv").config();
+require("dotenv").config({ override: true });
 
 // Load environment variables from .env file
 const getDataFromAPI = async (noPelanggan) => {
