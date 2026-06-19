@@ -185,7 +185,6 @@ function buildLayout(ctx, payload, width) {
   const customerLines = wrapText(ctx, payload.customerNo, innerW, FONT.value, 2);
   const categoryBrand = `${safe(payload.category)} / ${safe(payload.brand || payload.provider)}`;
   const categoryLines = wrapText(ctx, categoryBrand, innerW, FONT.value, 2);
-  const providerLines = wrapText(ctx, payload.provider, innerW, FONT.value, 1);
   const timeLines = wrapText(ctx, `${safe(payload.timeText)} ${safe(payload.tzLabel, '')}`.trim(), innerW, FONT.value, 2);
   const snText = safe(payload.serialNumber, '');
   const snLines = snText ? wrapText(ctx, snText, innerW - 34, FONT.sn, 8) : [];
@@ -193,7 +192,7 @@ function buildLayout(ctx, payload, width) {
   const fieldHeight = (lines) => 24 + lines.length * 27 + 14;
   const headerH = 174;
   const productH = 24 + productLines.length * 29 + 16;
-  const fieldsH = fieldHeight(customerLines) + fieldHeight(categoryLines) + fieldHeight(providerLines) + fieldHeight(timeLines);
+  const fieldsH = fieldHeight(customerLines) + fieldHeight(categoryLines) + fieldHeight(timeLines);
   const totalH = 96;
   const snH = snLines.length ? 52 + snLines.length * 27 + 44 : 0;
   const footerH = 280;
@@ -214,7 +213,6 @@ function buildLayout(ctx, payload, width) {
     productLines,
     customerLines,
     categoryLines,
-    providerLines,
     timeLines,
     snLines,
   };
@@ -315,7 +313,6 @@ async function createReceiptImage({
 
   y = drawField(ctx, { label: 'Nomor / ID Tujuan', lines: layout.customerLines, x: layout.innerX, y, width: layout.innerW });
   y = drawField(ctx, { label: 'Kategori / Brand', lines: layout.categoryLines, x: layout.innerX, y, width: layout.innerW });
-  y = drawField(ctx, { label: 'Provider', lines: layout.providerLines, x: layout.innerX, y, width: layout.innerW });
   y = drawField(ctx, { label: 'Waktu', lines: layout.timeLines, x: layout.innerX, y, width: layout.innerW });
 
   // status and total payment block
