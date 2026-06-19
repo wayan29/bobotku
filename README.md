@@ -221,6 +221,7 @@ WEBHOOK_MAX_BODY_BYTES=65536
 - **TokoVoucher**: bot memverifikasi `X-TokoVoucher-Authorization = md5(MEMBER_CODE:SECRET:REF_ID)` bila `REQUIRE_TOKOVOUCHER_WEBHOOK_AUTH=1`.
 - Webhook memakai `upsertTransactionLog()` sehingga idempotent dan tidak membuat duplicate log.
 - Event `ping` Digiflazz dijawab `200` tanpa menulis transaksi.
+- Setelah webhook sukses diproses, bot mengirim notifikasi status ke `WEBHOOK_NOTIFY_CHAT_ID` atau fallback `OWNER_CHAT_ID`.
 
 Contoh env:
 
@@ -229,6 +230,8 @@ HEROKU_URL=https://your-domain.example.com
 PORT=3000
 DIGIFLAZZ_WEBHOOK_SECRET=your_webhook_secret
 REQUIRE_TOKOVOUCHER_WEBHOOK_AUTH=1
+WEBHOOK_NOTIFY_ENABLED=1
+WEBHOOK_NOTIFY_CHAT_ID=your_admin_chat_id
 ```
 
 ## ✅ Verifikasi & Maintenance

@@ -14,6 +14,57 @@ function sendJson(res, statusCode, body) {
   res.end(JSON.stringify(body));
 }
 
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getStatusEmoji(status) {
+  const normalized = String(status || '').toLowerCase();
+  if (normalized === 'sukses') return '✅';
+  if (normalized === 'gagal') return '❌';
+  if (normalized === 'pending') return '⏳';
+  return 'ℹ️';
+}
+
+function formatWebhookNotification(mapped) {
+  const providerLabel = mapped.provider === 'digiflazz' ? 'Digiflazz' : 'TokoVoucher';
+  const emoji = getStatusEmoji(mapped.status);
+  const lines = [
+    `${emoji} <b>WEBHOOK STATUS ${escapeHtml(providerLabel)}</b>`,
+    '',
+    `🆔 Ref ID: <code>${escapeHtml(mapped.id)}</code>`,
+    `📊 Status: <b>${escapeHtml(mapped.status || 'Unknown')}</b>`,
+  ];
+
+  if (mapped.productName) lines.push(`📦 Produk: ${escapeHtml(mapped.productName)}`);
+  if (mapped.originalCustomerNo) lines.push(`🎯 Tujuan: <code>${escapeHtml(mapped.originalCustomerNo)}</code>`);
+  if (mapped.serialNumber) lines.push(`🔐 SN: <code>${escapeHtml(mapped.serialNumber)}</code>`);
+  if (mapped.message) lines.push(`📝 Pesan: ${escapeHtml(mapped.message)}`);
+  if (mapped.costPrice) lines.push(`💰 Harga Modal: Rp ${Number(mapped.costPrice).toLocaleString('id-ID')}`);
+
+  lines.push('', `🕒 ${new Date().toLocaleString('id-ID', { timeZone: process.env.TZ || 'Asia/Makassar' })}`);
+  return lines.join('\n');
+}
+
+async function notifyWebhookStatus(bot, mapped) {
+  const chatId = process.env.WEBHOOK_NOTIFY_CHAT_ID || process.env.OWNER_CHAT_ID;
+  if (!bot || !chatId || process.env.WEBHOOK_NOTIFY_ENABLED === '0') return;
+
+  try {
+    await bot.telegram.sendMessage(chatId, formatWebhookNotification(mapped), {
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+    });
+  } catch (error) {
+    console.warn('Webhook Telegram notify failed:', error?.message || error);
+  }
+}
+
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -130,7 +181,7 @@ function mapTokoVoucherPayload(payload) {
   };
 }
 
-async function handleProviderWebhook(req, res) {
+async function handleProviderWebhook(req, res, options = {}) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname.replace(/\/+$/, '');
   const isDigi = pathname === (process.env.DIGIFLAZZ_WEBHOOK_PATH || '/webhooks/digiflazz');
@@ -166,6 +217,7 @@ async function handleProviderWebhook(req, res) {
     }
 
     await upsertTransactionLog(mapped);
+    await notifyWebhookStatus(options.bot, mapped);
     sendJson(res, 200, { ok: true, ref_id: mapped.id });
   } catch (error) {
     const statusCode = error?.statusCode || (error instanceof SyntaxError ? 400 : 500);

@@ -93,7 +93,7 @@ if (process.env.NODE_ENV === 'production') {
     const telegramWebhook = bot.webhookCallback(webhookPath);
 
     httpServer = http.createServer(async (req, res) => {
-        if (await handleProviderWebhook(req, res)) return;
+        if (await handleProviderWebhook(req, res, { bot })) return;
         return telegramWebhook(req, res);
     });
 
