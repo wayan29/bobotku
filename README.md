@@ -222,6 +222,7 @@ WEBHOOK_MAX_BODY_BYTES=65536
 - Webhook memakai `upsertTransactionLog()` sehingga idempotent dan tidak membuat duplicate log.
 - Event `ping` Digiflazz dijawab `200` tanpa menulis transaksi.
 - Setelah webhook sukses diproses, bot mengirim notifikasi status ke `WEBHOOK_NOTIFY_CHAT_ID` atau fallback `OWNER_CHAT_ID`.
+- Notifikasi webhook menyertakan tombol mobile-friendly `Salin Ref ID` dan `Salin SN` (Telegram `copy_text`) bila data tersedia.
 
 Contoh env:
 

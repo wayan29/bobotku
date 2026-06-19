@@ -51,6 +51,17 @@ function formatWebhookNotification(mapped) {
   return lines.join('\n');
 }
 
+function buildCopyKeyboard(mapped) {
+  const buttons = [];
+  if (mapped.id) {
+    buttons.push([{ text: '📋 Salin Ref ID', copy_text: { text: String(mapped.id) } }]);
+  }
+  if (mapped.serialNumber) {
+    buttons.push([{ text: '🔐 Salin SN', copy_text: { text: String(mapped.serialNumber) } }]);
+  }
+  return buttons.length ? { inline_keyboard: buttons } : undefined;
+}
+
 async function notifyWebhookStatus(bot, mapped) {
   const chatId = process.env.WEBHOOK_NOTIFY_CHAT_ID || process.env.OWNER_CHAT_ID;
   if (!bot || !chatId || process.env.WEBHOOK_NOTIFY_ENABLED === '0') return;
@@ -59,6 +70,7 @@ async function notifyWebhookStatus(bot, mapped) {
     await bot.telegram.sendMessage(chatId, formatWebhookNotification(mapped), {
       parse_mode: 'HTML',
       disable_web_page_preview: true,
+      reply_markup: buildCopyKeyboard(mapped),
     });
   } catch (error) {
     console.warn('Webhook Telegram notify failed:', error?.message || error);
