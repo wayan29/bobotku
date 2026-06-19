@@ -153,9 +153,21 @@ const digiflazz = {
         } catch (error) {
         if (error.response) {
           // Response with unsuccessful status code
-        console.error('Status code:', error.response.status);
-        console.error('Message:', error.response?.data?.data?.message || error.response.data);
-            return error.response.data.data;
+        const responseData = error.response?.data?.data || {};
+        const providerMessage = responseData.message || error.response?.data?.message || error.response?.data?.error_msg || error.message;
+        console.error('Digiflazz transaction HTTP status:', error.response.status);
+        console.error('Digiflazz transaction message:', providerMessage);
+            return {
+                status: responseData.status || 'Gagal',
+                message: providerMessage || 'Transaksi Digiflazz gagal',
+                ref_id: responseData.ref_id || refId,
+                buyer_sku_code: responseData.buyer_sku_code || buyerSkuCode,
+                customer_no: responseData.customer_no || customerNumber,
+                sn: responseData.sn,
+                price: responseData.price,
+                buyer_last_saldo: responseData.buyer_last_saldo,
+                rc: responseData.rc,
+            };
         } else if (error.request) {
           // No response received
           console.error('No response received for transaction request');
@@ -190,8 +202,12 @@ const digiflazz = {
                      throw new Error('Error: ' + response.data.message);
                 }
             } catch (error) {
-                 console.error('Error checking balance:', error.message);
-                  throw error;
+                 const providerMessage = error.response?.data?.data?.message
+                    || error.response?.data?.message
+                    || error.response?.data?.error_msg
+                    || error.message;
+                 console.error('Error checking balance:', providerMessage);
+                 throw new Error(providerMessage || 'Gagal cek saldo Digiflazz');
             }
     };
   /**

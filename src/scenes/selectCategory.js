@@ -27,7 +27,12 @@ botMenu.enter(async (ctx) => {
                 await ctx.reply('⚠️ Tidak dapat mengambil data kategori produk. Silakan coba beberapa saat lagi.');
                 return ctx.scene.enter(SCENE_KEYS.BOT);
             }
-            saldoText = `💰 <b>Saldo</b>: Rp ${numberWithCommas(await checkSaldoDigi())}\n\n`;
+            try {
+                saldoText = `💰 <b>Saldo</b>: Rp ${numberWithCommas(await checkSaldoDigi())}\n\n`;
+            } catch (saldoError) {
+                console.warn('Digiflazz balance check skipped:', saldoError?.message || saldoError);
+                saldoText = '💰 <b>Saldo</b>: <i>tidak dapat dicek saat ini</i>\n\n';
+            }
             listText = `📂 <b>Pilih Kategori</b>\n\n` + listdigiflazz
                 .map((item, index) => `${(index + 1).toString().padStart(2,'0')}. ${item}`)
                 .join('\n');
