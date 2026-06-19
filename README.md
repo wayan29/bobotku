@@ -194,6 +194,43 @@ Catatan akses pengguna:
 - Bot balas "Terlalu cepat. Coba lagi dalam X detik" — Anda terkena rate limit. Tunggu sesuai petunjuk lalu ulangi.
 - Transaksi TokoVoucher gagal karena signature: pastikan `member_code` & `secret` benar. Jika provider lama bermasalah dengan POST, set `TOV_USE_GET=1` sebagai fallback sementara.
 
+## 🔔 Provider Webhooks
+
+Bot dapat menerima callback status transaksi dari provider agar status `transactions_log` otomatis diperbarui tanpa polling manual.
+
+### URL Webhook
+
+Daftarkan URL berikut di dashboard provider:
+
+```text
+Digiflazz   : https://your-domain.example.com/webhooks/digiflazz
+TokoVoucher : https://your-domain.example.com/webhooks/tokovoucher
+```
+
+Path bisa diubah lewat `.env`:
+
+```env
+DIGIFLAZZ_WEBHOOK_PATH=/webhooks/digiflazz
+TOKOVOUCHER_WEBHOOK_PATH=/webhooks/tokovoucher
+WEBHOOK_MAX_BODY_BYTES=65536
+```
+
+### Security
+
+- **Digiflazz**: jika `DIGIFLAZZ_WEBHOOK_SECRET` diisi, bot memverifikasi header signature HMAC (`X-Hub-Signature` / `X-Digiflazz-Signature`) terhadap raw body.
+- **TokoVoucher**: bot memverifikasi `X-TokoVoucher-Authorization = md5(MEMBER_CODE:SECRET:REF_ID)` bila `REQUIRE_TOKOVOUCHER_WEBHOOK_AUTH=1`.
+- Webhook memakai `upsertTransactionLog()` sehingga idempotent dan tidak membuat duplicate log.
+- Event `ping` Digiflazz dijawab `200` tanpa menulis transaksi.
+
+Contoh env:
+
+```env
+HEROKU_URL=https://your-domain.example.com
+PORT=3000
+DIGIFLAZZ_WEBHOOK_SECRET=your_webhook_secret
+REQUIRE_TOKOVOUCHER_WEBHOOK_AUTH=1
+```
+
 ## ✅ Verifikasi & Maintenance
 
 - Cek dependency security:

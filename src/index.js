@@ -1,4 +1,5 @@
 const { Telegraf, session, Scenes } = require('telegraf');
+const http = require('http');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
@@ -27,6 +28,7 @@ const {
     reloadDigiflazzPricelist,
 } = require('./handlers/utilityCommands');
 const { resetSessionForBot } = require('./utils/sessionState');
+const { handleProviderWebhook } = require('./services/providerWebhooks');
 
 const dbURL = process.env.MONGO_URL;
 mongoose.connect(dbURL)
@@ -83,12 +85,26 @@ bot.on('text', (ctx) => {
 
 
 
+let httpServer = null;
+
 if (process.env.NODE_ENV === 'production') {
-    bot.launch({
-        webhook: {
-            domain: process.env.HEROKU_URL,
-            port: process.env.PORT
+    const port = Number(process.env.PORT || 3000);
+    const webhookPath = process.env.TELEGRAM_WEBHOOK_PATH || `/telegraf/${bot.secretPathComponent()}`;
+    const telegramWebhook = bot.webhookCallback(webhookPath);
+
+    httpServer = http.createServer(async (req, res) => {
+        if (await handleProviderWebhook(req, res)) return;
+        return telegramWebhook(req, res);
+    });
+
+    httpServer.listen(port, async () => {
+        const domain = (process.env.HEROKU_URL || '').replace(/\/+$/, '');
+        if (!domain) {
+            console.error('HEROKU_URL is required in production webhook mode');
+            return;
         }
+        await bot.telegram.setWebhook(`${domain}${webhookPath}`);
+        console.log(`Webhook server listening on port ${port}`);
     });
 } else {
     bot.launch();
@@ -98,6 +114,7 @@ if (process.env.NODE_ENV === 'production') {
 const shutdown = (signal) => {
     console.log(`Received ${signal}, shutting down...`);
     bot.stop(signal);
+    if (httpServer) httpServer.close(() => console.log('HTTP server closed'));
     mongoose.connection.close(false).finally(() => process.exit(0));
 };
 process.once('SIGINT', () => shutdown('SIGINT'));
