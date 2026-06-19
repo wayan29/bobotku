@@ -89,13 +89,22 @@ function buildCopyKeyboard(mapped) {
   return buttons.length ? { inline_keyboard: buttons } : undefined;
 }
 
-function enrichMappedForNotification(mapped, existing) {
+function mergeWebhookWithExisting(mapped, existing) {
   if (!existing) return mapped;
+
   return {
     ...mapped,
+    // Preserve the original transaction owner and source from Telegram flow.
+    // Webhooks are status updates, not the transaction creator.
+    user: existing.transactedBy,
+    source: existing.source,
+    // Prefer richer product/customer metadata captured during the original transaction.
     productName: existing.productName || mapped.productName,
     buyerSkuCode: mapped.buyerSkuCode || existing.buyerSkuCode,
-    originalCustomerNo: mapped.originalCustomerNo || existing.originalCustomerNo,
+    originalCustomerNo: existing.originalCustomerNo || mapped.originalCustomerNo,
+    categoryName: existing.productCategoryFromProvider,
+    brandName: existing.productBrandFromProvider,
+    sellingPrice: existing.sellingPrice,
     serialNumber: mapped.serialNumber ? String(mapped.serialNumber).trim() : existing.serialNumber,
   };
 }
@@ -309,9 +318,9 @@ async function handleProviderWebhook(req, res, options = {}) {
     }
 
     const existing = await TransactionLog.findOne({ id: mapped.id }).lean().exec();
-    await upsertTransactionLog(mapped);
-    const notificationData = enrichMappedForNotification(mapped, existing);
-    await notifyWebhookStatus(options.bot, notificationData, existing);
+    const upsertData = mergeWebhookWithExisting(mapped, existing);
+    await upsertTransactionLog(upsertData);
+    await notifyWebhookStatus(options.bot, upsertData, existing);
     sendJson(res, 200, { ok: true, ref_id: mapped.id });
   } catch (error) {
     const statusCode = error?.statusCode || (error instanceof SyntaxError ? 400 : 500);
