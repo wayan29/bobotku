@@ -87,6 +87,18 @@ bot.on('text', (ctx) => {
 
 let httpServer = null;
 
+function startProviderWebhookServer(port) {
+    httpServer = http.createServer(async (req, res) => {
+        if (await handleProviderWebhook(req, res, { bot })) return;
+        res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, error: 'not_found' }));
+    });
+
+    httpServer.listen(port, () => {
+        console.log(`Provider webhook server listening on port ${port}`);
+    });
+}
+
 if (process.env.NODE_ENV === 'production') {
     const port = Number(process.env.PORT || 3000);
     const webhookPath = process.env.TELEGRAM_WEBHOOK_PATH || `/telegraf/${bot.secretPathComponent()}`;
@@ -108,6 +120,9 @@ if (process.env.NODE_ENV === 'production') {
     });
 } else {
     bot.launch();
+    if (process.env.ENABLE_PROVIDER_WEBHOOKS === '1') {
+        startProviderWebhookServer(Number(process.env.PORT || 3000));
+    }
 }
 
 // Graceful shutdown
