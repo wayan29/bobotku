@@ -44,8 +44,9 @@ function formatWebhookNotification(mapped) {
     `📊 Status: <b>${escapeHtml(mapped.status || 'Unknown')}</b>`,
   ];
 
-  if (mapped.productName) lines.push(`📦 Produk: ${escapeHtml(mapped.productName)}`);
-  if (mapped.originalCustomerNo) lines.push(`🎯 Tujuan: <code>${escapeHtml(mapped.originalCustomerNo)}</code>`);
+  if (mapped.productName) lines.push(`📦 Produk dibeli: ${escapeHtml(mapped.productName)}`);
+  if (mapped.buyerSkuCode && mapped.buyerSkuCode !== mapped.productName) lines.push(`🏷️ Kode SKU: <code>${escapeHtml(mapped.buyerSkuCode)}</code>`);
+  if (mapped.originalCustomerNo) lines.push(`🎯 Nomor/ID tujuan: <code>${escapeHtml(mapped.originalCustomerNo)}</code>`);
   if (mapped.serialNumber) lines.push(`🔐 SN: <code>${escapeHtml(mapped.serialNumber)}</code>`);
   if (mapped.message) lines.push(`📝 Pesan: ${escapeHtml(mapped.message)}`);
 
@@ -68,7 +69,9 @@ function formatOwnerWebhookSummary(mapped, recipient) {
     `🆔 Ref ID: <code>${escapeHtml(mapped.id)}</code>`,
     `📊 Status: <b>${escapeHtml(mapped.status || 'Unknown')}</b>`,
   ];
-  if (mapped.productName) lines.push(`📦 Produk: ${escapeHtml(mapped.productName)}`);
+  if (mapped.productName) lines.push(`📦 Produk dibeli: ${escapeHtml(mapped.productName)}`);
+  if (mapped.buyerSkuCode && mapped.buyerSkuCode !== mapped.productName) lines.push(`🏷️ Kode SKU: <code>${escapeHtml(mapped.buyerSkuCode)}</code>`);
+  if (mapped.originalCustomerNo) lines.push(`🎯 Nomor/ID tujuan: <code>${escapeHtml(mapped.originalCustomerNo)}</code>`);
   if (mapped.serialNumber) lines.push(`🔐 SN: <code>${escapeHtml(mapped.serialNumber)}</code>`);
   if (mapped.message) lines.push(`📝 Pesan: ${escapeHtml(mapped.message)}`);
   lines.push('', `🕒 ${new Date().toLocaleString('id-ID', { timeZone: process.env.TZ || 'Asia/Makassar' })}`);
@@ -84,6 +87,17 @@ function buildCopyKeyboard(mapped) {
     buttons.push([{ text: '🔐 Salin SN', copy_text: { text: String(mapped.serialNumber) } }]);
   }
   return buttons.length ? { inline_keyboard: buttons } : undefined;
+}
+
+function enrichMappedForNotification(mapped, existing) {
+  if (!existing) return mapped;
+  return {
+    ...mapped,
+    productName: existing.productName || mapped.productName,
+    buyerSkuCode: mapped.buyerSkuCode || existing.buyerSkuCode,
+    originalCustomerNo: mapped.originalCustomerNo || existing.originalCustomerNo,
+    serialNumber: mapped.serialNumber ? String(mapped.serialNumber).trim() : existing.serialNumber,
+  };
 }
 
 function shouldNotify(existing, mapped) {
@@ -219,6 +233,10 @@ function verifyTokoVoucher(req, url, payload) {
   return { ok: !requireAuth, skipped: true, reason: 'auth not configured' };
 }
 
+function cleanValue(value) {
+  return typeof value === 'string' ? value.trim() : value;
+}
+
 function mapDigiflazzPayload(payload) {
   const data = payload.data || payload;
   return {
@@ -227,11 +245,11 @@ function mapDigiflazzPayload(payload) {
     user: 'provider_webhook',
     source: 'digiflazz_webhook',
     status: normalizeProviderStatus(data.status, data.rc),
-    message: firstDefined(data.message, data.error_msg),
-    serialNumber: firstDefined(data.sn, data.serial_number),
-    productName: firstDefined(data.product_name, data.buyer_sku_code),
-    buyerSkuCode: firstDefined(data.buyer_sku_code, data.sku),
-    originalCustomerNo: firstDefined(data.customer_no, data.customer_number),
+    message: cleanValue(firstDefined(data.message, data.error_msg)),
+    serialNumber: cleanValue(firstDefined(data.sn, data.serial_number)),
+    productName: cleanValue(firstDefined(data.product_name, data.buyer_sku_code)),
+    buyerSkuCode: cleanValue(firstDefined(data.buyer_sku_code, data.sku)),
+    originalCustomerNo: cleanValue(firstDefined(data.customer_no, data.customer_number)),
     providerTransactionId: firstDefined(data.trx_id, data.id),
     costPrice: firstDefined(data.price, data.cost_price),
   };
@@ -245,11 +263,11 @@ function mapTokoVoucherPayload(payload) {
     user: 'provider_webhook',
     source: 'tokovoucher_webhook',
     status: normalizeProviderStatus(firstDefined(data.status, data.status_trx), data.rc),
-    message: firstDefined(data.message, data.keterangan, data.note),
-    serialNumber: firstDefined(data.sn, data.serial_number, data.voucher),
-    productName: firstDefined(data.produk, data.product_name, data.nama_produk, data.kode_produk),
-    buyerSkuCode: firstDefined(data.kode_produk, data.code, data.product_code),
-    originalCustomerNo: firstDefined(data.tujuan, data.customer_no, data.nomor, data.no_tujuan),
+    message: cleanValue(firstDefined(data.message, data.keterangan, data.note)),
+    serialNumber: cleanValue(firstDefined(data.sn, data.serial_number, data.voucher)),
+    productName: cleanValue(firstDefined(data.produk, data.product_name, data.nama_produk, data.kode_produk)),
+    buyerSkuCode: cleanValue(firstDefined(data.kode_produk, data.code, data.product_code)),
+    originalCustomerNo: cleanValue(firstDefined(data.tujuan, data.customer_no, data.nomor, data.no_tujuan)),
     providerTransactionId: firstDefined(data.trx_id, data.id),
     costPrice: firstDefined(data.price, data.harga),
   };
@@ -292,7 +310,8 @@ async function handleProviderWebhook(req, res, options = {}) {
 
     const existing = await TransactionLog.findOne({ id: mapped.id }).lean().exec();
     await upsertTransactionLog(mapped);
-    await notifyWebhookStatus(options.bot, mapped, existing);
+    const notificationData = enrichMappedForNotification(mapped, existing);
+    await notifyWebhookStatus(options.bot, notificationData, existing);
     sendJson(res, 200, { ok: true, ref_id: mapped.id });
   } catch (error) {
     const statusCode = error?.statusCode || (error instanceof SyntaxError ? 400 : 500);
