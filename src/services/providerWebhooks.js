@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const TransactionLog = require('../models/transactionLog');
+const User = require('../models/mongoose');
 const { upsertTransactionLog } = require('./upsertTransactionLog');
 
 const MAX_BODY_BYTES = Number(process.env.WEBHOOK_MAX_BODY_BYTES || 64 * 1024);
@@ -35,8 +37,9 @@ function formatWebhookNotification(mapped) {
   const providerLabel = mapped.provider === 'digiflazz' ? 'Digiflazz' : 'TokoVoucher';
   const emoji = getStatusEmoji(mapped.status);
   const lines = [
-    `${emoji} <b>WEBHOOK STATUS ${escapeHtml(providerLabel)}</b>`,
+    `${emoji} <b>UPDATE STATUS TRANSAKSI</b>`,
     '',
+    `🏪 Provider: <b>${escapeHtml(providerLabel)}</b>`,
     `🆔 Ref ID: <code>${escapeHtml(mapped.id)}</code>`,
     `📊 Status: <b>${escapeHtml(mapped.status || 'Unknown')}</b>`,
   ];
@@ -45,8 +48,29 @@ function formatWebhookNotification(mapped) {
   if (mapped.originalCustomerNo) lines.push(`🎯 Tujuan: <code>${escapeHtml(mapped.originalCustomerNo)}</code>`);
   if (mapped.serialNumber) lines.push(`🔐 SN: <code>${escapeHtml(mapped.serialNumber)}</code>`);
   if (mapped.message) lines.push(`📝 Pesan: ${escapeHtml(mapped.message)}`);
-  if (mapped.costPrice) lines.push(`💰 Harga Modal: Rp ${Number(mapped.costPrice).toLocaleString('id-ID')}`);
 
+  lines.push('', `🕒 ${new Date().toLocaleString('id-ID', { timeZone: process.env.TZ || 'Asia/Makassar' })}`);
+  return lines.join('\n');
+}
+
+function formatOwnerWebhookSummary(mapped, recipient) {
+  const providerLabel = mapped.provider === 'digiflazz' ? 'Digiflazz' : 'TokoVoucher';
+  const emoji = getStatusEmoji(mapped.status);
+  const userText = recipient?.user
+    ? `${recipient.user.username ? '@' + recipient.user.username : '-'} / <code>${escapeHtml(recipient.user.chatId)}</code>`
+    : `<i>tidak ditemukan</i> (${escapeHtml(recipient?.transactedBy || '-')})`;
+
+  const lines = [
+    `${emoji} <b>NOTIF WEBHOOK OWNER</b>`,
+    '',
+    `👤 User transaksi: ${userText}`,
+    `🏪 Provider: <b>${escapeHtml(providerLabel)}</b>`,
+    `🆔 Ref ID: <code>${escapeHtml(mapped.id)}</code>`,
+    `📊 Status: <b>${escapeHtml(mapped.status || 'Unknown')}</b>`,
+  ];
+  if (mapped.productName) lines.push(`📦 Produk: ${escapeHtml(mapped.productName)}`);
+  if (mapped.serialNumber) lines.push(`🔐 SN: <code>${escapeHtml(mapped.serialNumber)}</code>`);
+  if (mapped.message) lines.push(`📝 Pesan: ${escapeHtml(mapped.message)}`);
   lines.push('', `🕒 ${new Date().toLocaleString('id-ID', { timeZone: process.env.TZ || 'Asia/Makassar' })}`);
   return lines.join('\n');
 }
@@ -62,18 +86,56 @@ function buildCopyKeyboard(mapped) {
   return buttons.length ? { inline_keyboard: buttons } : undefined;
 }
 
-async function notifyWebhookStatus(bot, mapped) {
-  const chatId = process.env.WEBHOOK_NOTIFY_CHAT_ID || process.env.OWNER_CHAT_ID;
-  if (!bot || !chatId || process.env.WEBHOOK_NOTIFY_ENABLED === '0') return;
+function shouldNotify(existing, mapped) {
+  if (process.env.WEBHOOK_NOTIFY_DUPLICATES === '1') return true;
+  if (!existing) return true;
+  const oldStatus = String(existing.status || '').toLowerCase();
+  const newStatus = String(mapped.status || '').toLowerCase();
+  const oldSn = String(existing.serialNumber || '');
+  const newSn = String(mapped.serialNumber || '');
+  return oldStatus !== newStatus || (!!newSn && oldSn !== newSn);
+}
 
-  try {
-    await bot.telegram.sendMessage(chatId, formatWebhookNotification(mapped), {
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-      reply_markup: buildCopyKeyboard(mapped),
-    });
-  } catch (error) {
-    console.warn('Webhook Telegram notify failed:', error?.message || error);
+async function resolveTransactionRecipient(existing) {
+  const transactedBy = existing?.transactedBy ? String(existing.transactedBy).trim() : '';
+  if (!transactedBy) return { transactedBy, user: null };
+
+  const username = transactedBy.replace(/^@/, '');
+  const query = { $or: [{ chatId: transactedBy }, { username }] };
+  const user = await User.findOne(query).lean().exec();
+  return { transactedBy, user };
+}
+
+async function notifyWebhookStatus(bot, mapped, existing) {
+  if (!bot || process.env.WEBHOOK_NOTIFY_ENABLED === '0') return;
+  if (!shouldNotify(existing, mapped)) return;
+
+  const recipient = await resolveTransactionRecipient(existing);
+  const ownerChatId = process.env.WEBHOOK_NOTIFY_CHAT_ID || process.env.OWNER_CHAT_ID;
+  const userChatId = recipient.user?.chatId;
+
+  if (userChatId) {
+    try {
+      await bot.telegram.sendMessage(userChatId, formatWebhookNotification(mapped), {
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+        reply_markup: buildCopyKeyboard(mapped),
+      });
+    } catch (error) {
+      console.warn('Webhook user notify failed:', error?.message || error);
+    }
+  }
+
+  if (ownerChatId) {
+    try {
+      await bot.telegram.sendMessage(ownerChatId, formatOwnerWebhookSummary(mapped, recipient), {
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+        reply_markup: buildCopyKeyboard(mapped),
+      });
+    } catch (error) {
+      console.warn('Webhook owner notify failed:', error?.message || error);
+    }
   }
 }
 
@@ -228,8 +290,9 @@ async function handleProviderWebhook(req, res, options = {}) {
       return true;
     }
 
+    const existing = await TransactionLog.findOne({ id: mapped.id }).lean().exec();
     await upsertTransactionLog(mapped);
-    await notifyWebhookStatus(options.bot, mapped);
+    await notifyWebhookStatus(options.bot, mapped, existing);
     sendJson(res, 200, { ok: true, ref_id: mapped.id });
   } catch (error) {
     const statusCode = error?.statusCode || (error instanceof SyntaxError ? 400 : 500);

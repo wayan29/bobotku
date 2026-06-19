@@ -221,8 +221,10 @@ WEBHOOK_MAX_BODY_BYTES=65536
 - **TokoVoucher**: bot memverifikasi `X-TokoVoucher-Authorization = md5(MEMBER_CODE:SECRET:REF_ID)` bila `REQUIRE_TOKOVOUCHER_WEBHOOK_AUTH=1`.
 - Webhook memakai `upsertTransactionLog()` sehingga idempotent dan tidak membuat duplicate log.
 - Event `ping` Digiflazz dijawab `200` tanpa menulis transaksi.
-- Setelah webhook sukses diproses, bot mengirim notifikasi status ke `WEBHOOK_NOTIFY_CHAT_ID` atau fallback `OWNER_CHAT_ID`.
+- Setelah webhook sukses diproses, bot mengirim detail status ke chat ID user pemilik transaksi (berdasarkan `TransactionLog.transactedBy` → koleksi `white_id`).
+- Owner/admin (`WEBHOOK_NOTIFY_CHAT_ID` atau fallback `OWNER_CHAT_ID`) mendapat ringkasan berisi siapa user yang transaksi, provider, status, Ref ID, dan SN.
 - Notifikasi webhook menyertakan tombol mobile-friendly `Salin Ref ID` dan `Salin SN` (Telegram `copy_text`) bila data tersedia.
+- Default: notifikasi retry/duplikat webhook diabaikan bila status+SN sama. Set `WEBHOOK_NOTIFY_DUPLICATES=1` untuk selalu kirim.
 
 Contoh env:
 
@@ -233,6 +235,7 @@ DIGIFLAZZ_WEBHOOK_SECRET=your_webhook_secret
 REQUIRE_TOKOVOUCHER_WEBHOOK_AUTH=1
 WEBHOOK_NOTIFY_ENABLED=1
 WEBHOOK_NOTIFY_CHAT_ID=your_admin_chat_id
+WEBHOOK_NOTIFY_DUPLICATES=0
 ```
 
 ## ✅ Verifikasi & Maintenance
