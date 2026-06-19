@@ -127,12 +127,12 @@ if (process.env.NODE_ENV === 'production') {
             console.warn('deleteWebhook warning:', error?.message || error);
         }
 
-        await bot.launch();
-        console.log('Telegram bot polling started');
-
         if (process.env.ENABLE_PROVIDER_WEBHOOKS === '1') {
             startProviderWebhookServer(Number(process.env.PORT || 3000));
         }
+
+        bot.launch();
+        console.log('Telegram bot polling started');
     })().catch((error) => {
         console.error('Bot startup failed:', error?.message || error);
         process.exit(1);
