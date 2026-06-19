@@ -119,10 +119,24 @@ if (process.env.NODE_ENV === 'production') {
         console.log(`Webhook server listening on port ${port}`);
     });
 } else {
-    bot.launch();
-    if (process.env.ENABLE_PROVIDER_WEBHOOKS === '1') {
-        startProviderWebhookServer(Number(process.env.PORT || 3000));
-    }
+    (async () => {
+        try {
+            // Ensure Telegram polling works even if a webhook was set previously.
+            await bot.telegram.deleteWebhook();
+        } catch (error) {
+            console.warn('deleteWebhook warning:', error?.message || error);
+        }
+
+        await bot.launch();
+        console.log('Telegram bot polling started');
+
+        if (process.env.ENABLE_PROVIDER_WEBHOOKS === '1') {
+            startProviderWebhookServer(Number(process.env.PORT || 3000));
+        }
+    })().catch((error) => {
+        console.error('Bot startup failed:', error?.message || error);
+        process.exit(1);
+    });
 }
 
 // Graceful shutdown
