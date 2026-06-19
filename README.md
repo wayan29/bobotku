@@ -238,6 +238,16 @@ WEBHOOK_NOTIFY_CHAT_ID=your_admin_chat_id
 WEBHOOK_NOTIFY_DUPLICATES=0
 ```
 
+## 🧾 Kontrak Schema Transaksi
+
+Koleksi MongoDB utama untuk log transaksi adalah `transactions_log`. Karena koleksi ini dipakai bersama oleh web project dan bot Telegram, gunakan dokumen berikut sebagai acuan field dan aturan update aman:
+
+```text
+TRANSACTIONS_LOG_SCHEMA.md
+```
+
+Ringkasnya: web/bot membuat identitas transaksi awal, sedangkan webhook hanya mengupdate status/SN tanpa menimpa `transactedBy`, `source`, `sellingPrice`, `productName`, dan `originalCustomerNo`.
+
 ## ✅ Verifikasi & Maintenance
 
 - Cek dependency security:
