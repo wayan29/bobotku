@@ -78,10 +78,10 @@ function formatOwnerWebhookSummary(mapped, recipient) {
   return lines.join('\n');
 }
 
-function buildCopyKeyboard(mapped) {
+function buildWebhookKeyboard(mapped) {
   const buttons = [];
   if (mapped.id) {
-    buttons.push([{ text: '📋 Salin Ref ID', copy_text: { text: String(mapped.id) } }]);
+    buttons.push([{ text: '🧾 Cetak Struk', callback_data: `receipt:${String(mapped.id)}` }]);
   }
   if (mapped.serialNumber) {
     buttons.push([{ text: '🔐 Salin SN', copy_text: { text: String(mapped.serialNumber) } }]);
@@ -142,7 +142,7 @@ async function notifyWebhookStatus(bot, mapped, existing) {
       await bot.telegram.sendMessage(userChatId, formatWebhookNotification(mapped), {
         parse_mode: 'HTML',
         disable_web_page_preview: true,
-        reply_markup: buildCopyKeyboard(mapped),
+        reply_markup: buildWebhookKeyboard(mapped),
       });
     } catch (error) {
       console.warn('Webhook user notify failed:', error?.message || error);
@@ -154,7 +154,7 @@ async function notifyWebhookStatus(bot, mapped, existing) {
       await bot.telegram.sendMessage(ownerChatId, formatOwnerWebhookSummary(mapped, recipient), {
         parse_mode: 'HTML',
         disable_web_page_preview: true,
-        reply_markup: buildCopyKeyboard(mapped),
+        reply_markup: buildWebhookKeyboard(mapped),
       });
     } catch (error) {
       console.warn('Webhook owner notify failed:', error?.message || error);

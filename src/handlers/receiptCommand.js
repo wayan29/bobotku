@@ -32,8 +32,52 @@ const normalizeStatus = (rawStatus) => {
     return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pending';
 };
 
+async function promptReceiptSellingPrice(ctx, { refId, provider, tlog }) {
+    if (!ctx.session) ctx.session = {};
+    const productName = tlog?.productName || '-';
+    const costPrice = tlog?.costPrice ?? tlog?.sellingPrice ?? 0;
+    const costText = formatCurrency(costPrice);
+
+    ctx.session.pendingReceipt = { refId, provider };
+
+    const promptMessage = `💰 <b>Masukkan Harga Jual</b>\n🆔 Ref: <code>${escapeHtml(refId)}</code>\n\n`
+        + `📦 <b>Produk:</b> ${escapeHtml(productName)}\n`
+        + `💸 <b>Harga Beli:</b> Rp ${costText}\n\n`
+        + 'Contoh: 12000';
+
+    await ctx.replyWithHTML(promptMessage);
+}
+
 function createReceiptCommandMiddleware({ checkTovStatus }) {
     return async (ctx, next) => {
+        const callbackData = ctx.callbackQuery?.data || '';
+        if (typeof callbackData === 'string' && callbackData.startsWith('receipt:')) {
+            try {
+                const refId = callbackData.slice('receipt:'.length).trim();
+                await ctx.answerCbQuery('Menyiapkan struk...').catch(() => {});
+
+                const tlog = await TransactionLog.findOne({ id: refId });
+                if (!tlog) {
+                    await ctx.replyWithHTML(`❌ <b>Ref ID tidak ditemukan:</b> <code>${escapeHtml(refId)}</code>`);
+                    return;
+                }
+
+                const status = String(tlog.status || '').toLowerCase();
+                if (status !== 'sukses') {
+                    const emoji = status === 'pending' ? '⏳' : status === 'gagal' ? '❌' : '❓';
+                    await ctx.replyWithHTML(`${emoji} <b>Struk hanya untuk transaksi sukses.</b>\nStatus sekarang: <b>${escapeHtml(tlog.status || '-').toUpperCase()}</b>`);
+                    return;
+                }
+
+                await promptReceiptSellingPrice(ctx, { refId, provider: tlog.provider, tlog });
+                return;
+            } catch (error) {
+                console.error('receipt callback error:', error?.message || error);
+                await ctx.replyWithHTML(`❌ <b>Gagal menyiapkan struk:</b> <code>${escapeHtml(error.message)}</code>`);
+                return;
+            }
+        }
+
         const text = ctx.message?.text || '';
         if (typeof text === 'string' && /^\/struk(\s+|$)/i.test(text)) {
             try {
@@ -141,19 +185,7 @@ function createReceiptCommandMiddleware({ checkTovStatus }) {
                     return;
                 }
 
-                if (!ctx.session) ctx.session = {};
-                const productName = tlog?.productName || '-';
-                const costPrice = tlog?.costPrice ?? tlog?.sellingPrice ?? 0;
-                const costText = formatCurrency(costPrice);
-
-                ctx.session.pendingReceipt = { refId, provider };
-
-                const promptMessage = `💰 <b>Masukkan Harga Jual</b>\n🆔 Ref: <code>${escapeHtml(refId)}</code>\n\n`
-                    + `📦 <b>Produk:</b> ${escapeHtml(productName)}\n`
-                    + `💸 <b>Harga Beli:</b> Rp ${costText}\n\n`
-                    + 'Contoh: 12000';
-
-                await ctx.replyWithHTML(promptMessage);
+                await promptReceiptSellingPrice(ctx, { refId, provider, tlog });
                 return;
             } catch (error) {
                 console.error('struk error:', error?.message || error);

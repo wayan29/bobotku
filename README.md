@@ -223,7 +223,7 @@ WEBHOOK_MAX_BODY_BYTES=65536
 - Event `ping` Digiflazz dijawab `200` tanpa menulis transaksi.
 - Setelah webhook sukses diproses, bot mengirim detail status ke chat ID user pemilik transaksi (berdasarkan `TransactionLog.transactedBy` → koleksi `white_id`).
 - Owner/admin (`WEBHOOK_NOTIFY_CHAT_ID` atau fallback `OWNER_CHAT_ID`) mendapat ringkasan berisi siapa user yang transaksi, provider, status, Ref ID, dan SN.
-- Notifikasi webhook menyertakan tombol mobile-friendly `Salin Ref ID` dan `Salin SN` (Telegram `copy_text`) bila data tersedia.
+- Notifikasi webhook menyertakan tombol mobile-friendly `Cetak Struk` dan `Salin SN` (Telegram `copy_text`) bila data tersedia.
 - Default: notifikasi retry/duplikat webhook diabaikan bila status+SN sama. Set `WEBHOOK_NOTIFY_DUPLICATES=1` untuk selalu kirim.
 
 Contoh env:
