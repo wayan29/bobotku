@@ -149,7 +149,8 @@ async function notifyWebhookStatus(bot, mapped, existing) {
     }
   }
 
-  if (ownerChatId) {
+  const ownerIsTransactionUser = ownerChatId && userChatId && String(ownerChatId) === String(userChatId);
+  if (ownerChatId && !ownerIsTransactionUser) {
     try {
       await bot.telegram.sendMessage(ownerChatId, formatOwnerWebhookSummary(mapped, recipient), {
         parse_mode: 'HTML',
