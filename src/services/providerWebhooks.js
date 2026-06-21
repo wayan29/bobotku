@@ -80,7 +80,10 @@ function formatOwnerWebhookSummary(mapped, recipient) {
 
 function buildWebhookKeyboard(mapped) {
   const buttons = [];
-  if (mapped.id) {
+  const status = String(mapped.status || '').toLowerCase();
+  const isSuccess = status === 'sukses' || status === 'success' || status === 'berhasil';
+
+  if (mapped.id && isSuccess) {
     buttons.push([{ text: '🧾 Cetak Struk', callback_data: `receipt:${String(mapped.id)}` }]);
   }
   if (mapped.serialNumber) {
